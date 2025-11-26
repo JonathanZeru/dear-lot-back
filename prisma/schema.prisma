@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+enum Role {
+  ADMIN
+  DISTRIBUTOR
+  AGENT
+  USER
+}
+model User {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  pinHash       String
+  name          String?
+  balance       Float      @default(0)
+  role          Role       @default(USER)
+  referralCode  String?     @unique
+  referredBy    String?
+  parent        User?      @relation("UserParent", fields: [referredBy], references: [referralCode])
+  children      User[]     @relation("UserParent")
+  isActive      Boolean    @default(true)
+
+  // REQUIRED inverse relations 👇👇
+  singleBookings   SingleBooking[]
+  rajshreeBookings RajshreeBooking[]
+  choiceBookings   ChoiceBooking[]
+
+  transactions     Transaction[]
+  agentTransactions Transaction[] @relation("AgentTransactions")
+  distributorTransactions Transaction[] @relation("DistributorTransactions")
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+
+
+
+model Session {
+  id        String   @id @default(cuid())
+  name      String
+  drawTime  String
+  active    Boolean  @default(true)
+  date      DateTime @default(now())
+
+  singles   SingleBooking[]
+  rajshrees RajshreeBooking[]
+  choices   ChoiceBooking[]
+  results   LotteryResult[]
+}
+
+model SingleBooking {
+  id        String   @id @default(cuid())
+  userId    String
+  number    Int
+  qty       Int
+  amount    Float
+  category  String?
+  status    String   @default("PENDING")
+  winAmount Float?   @default(0)  // Add this
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model RajshreeBooking {
+  id        String   @id @default(cuid())
+  userId    String
+  series    String
+  number    Int
+  qty       Int
+  amount    Float
+  category  String?
+  status    String  @default("PENDING")
+  winAmount Float?  @default(0)  // Add this
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model ChoiceBooking {
+  id        String   @id @default(cuid())
+  userId    String
+  numbers   String
+  qty       Int
+  amount    Float
+  status    String   @default("PENDING")
+
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model LotteryResult {
+  id        String   @id @default(cuid())
+  sessionId String
+  category  String
+  number    Int
+
+  session   Session @relation(fields: [sessionId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+
+model Transaction {
+  id             String   @id @default(cuid())
+  userId         String
+  amount         Float
+  type           String   // DEPOSIT | COMMISSION | WITHDRAW
+  agentId        String?
+  distributorId  String?
+
+  // Relations
+  user           User     @relation(fields: [userId], references: [id])
+  agent          User?    @relation("AgentTransactions", fields: [agentId], references: [id])
+  distributor    User?    @relation("DistributorTransactions", fields: [distributorId], references: [id])
+
+  createdAt      DateTime @default(now())
+}
+
